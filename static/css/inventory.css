@@ -1,0 +1,149 @@
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.navbar-top {
+    padding: 0px 68px;
+}
+.btn-add {
+    color: #fff;
+    background-color: #0085ef;
+    font-weight: 500;
+    border: none;
+    border-radius: 5px;
+    padding: 9px 12px;
+}
+.cs-link {
+    color: black;
+    background: none;
+    border: none;
+    padding: 16px 24px;
+}
+.cs-link.active{
+    color: green;
+    border-bottom: 2px solid green;
+    padding-top: 0;
+    padding-bottom: 0;
+
+}
+
+.item-master {
+    background-color: #fafafa;
+}
+
+.inventory {
+    background-color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    margin: 15px 0px;
+
+}
+
+.inventory i {
+    padding: 8px 0px;
+    font-size: 22px;
+}
+
+.inventory span {
+    font-size: 11px;
+}
+
+.table-heading {
+    padding: 25px 28px;
+}
+.filter-btn {
+    border: none;
+    border-radius: 5px;
+    padding: 8px 12px;
+    color: #2e2e2e;
+    font-weight: 500;
+}
+.result-btn {
+    border: none;
+    border-radius: 25px;
+    padding: 8px 12px;
+    font-weight: 500;
+    margin: 0 6px;
+}
+.table-heading-blue {
+    background-color: #099cb2;
+    color: white;
+}
+
+.search input[type=text] {
+    border: none;
+    border-bottom: 1px solid rgb(108, 105, 105);
+}
+
+.table-data-purple {
+    color: #6f2484;
+}
+
+
+.dropdown-btn {
+    border: none;
+    background: transparent;
+}
+.fooet-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+}
+
+
+/* items page css start */
+
+.items-header {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    pointer-events: auto;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid rgba(0,0,0,.2);
+    border-radius: 0.3rem;
+    outline: 0;
+    padding: 10px;
+}
+.itmes-footer {
+    display: flex;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0.75rem;
+    border-top: 1px solid #dee2e6;
+    border-bottom-right-radius: calc(0.3rem - 1px);
+    border-bottom-left-radius: calc(0.3rem - 1px);
+}
+.items-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    pointer-events: auto;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid rgba(0,0,0,.2);
+    border-radius: 0.3rem;
+    outline: 0;
+}
+.items-body {
+    position: relative;
+    flex: 1 1 auto;
+    padding: 1rem;
+}
+/* items page css end */
+@media only screen and (max-width: 767px)
+{
+  .result-btn
+  {
+    margin-top: 7px;
+  }
+  .navbar-top
+  {
+    padding: 0 10px;
+  }
+}

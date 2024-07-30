@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Edit Document{% endblock %}
+{% block content %}
+
+<div class="container">
+    <div class="item">
+        <!-- Page Content  -->
+        
+        <div class="card card-primary" id="form-card">
+            <div class="card-header">
+            <h3 class="card-title">Edit Detail</h3>
+            </div>
+            
+        
+            <form method="POST">
+                {% csrf_token %}
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="website">Website Link</label>
+                        <input type="text" class="form-control" id="website" name="website" required="true" value="{{ document_detail.website }}" placeholder="Website link">
+                    </div>
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" class="form-control" id="username" name="username" value="{{ document_detail.username }}" placeholder="Username">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" value="{{ document_detail.password }}" placeholder="Password">
+                    </div>
+                    <div class="form-group">
+                        <label for="xpath">Xpath Price</label>
+                        <input type="text" class="form-control" id="xpath" name="price" required="true" value="{{ document_detail.price }}" placeholder="Xpath for Price">
+                    </div>
+                    <div class="form-group">
+                        <label for="inventory">Xpath Inventory</label>
+                        <input type="text" class="form-control" id="inventory" name="inventory" required="true" value="{{ document_detail.inventory }}" placeholder="Xpath for Inventory">
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <input type="submit" class="btn btn-primary" value="Submit">
+                </div>
+            </form>
+            
+            <p style="color:red;">{%if message %}{{message}}{%endif%}</p>
+        </div>
+
+    </div>
+</div>
+<style>
+    .show-dropdown-links{
+        display: block!important;
+    }
+</style>
+
+{% endblock content %}
