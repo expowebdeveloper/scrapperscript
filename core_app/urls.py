@@ -14,5 +14,6 @@ urlpatterns = [
     path('list-ftp', views.ListFtpView.as_view(), name='list-ftp'),
     path('create-ftp/', views.CreateFtpView.as_view(), name='create-ftp'),
     path('delete-ftp/<str:id>', views.DeleteFtpView.as_view(), name='delete-ftp'),
+    path('all-logs', views.DisplayLogView.as_view(), name='all-logs'),
 
 ]

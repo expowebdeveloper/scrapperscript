@@ -21,6 +21,18 @@
                         <input type="text" class="form-control" id="website" name="website" required="true" value="{{ document_detail.website }}" placeholder="Website link">
                     </div>
                     <div class="form-group">
+                        <label for="website">Username Xpath</label>
+                        <input type="text" class="form-control" id="userame"name="login_username" value="{{ document_detail.username_xpath }}" placeholder="Login Username Xpath">
+                    </div>
+                    <div class="form-group">
+                        <label for="website">Password Xpath</label>
+                        <input type="text" class="form-control" id="password"name="login_password" value="{{ document_detail.password_xpath }}" placeholder="Login Password Xpath">
+                    </div>
+                    <div class="form-group">
+                        <label for="website">Login Xpath</label>
+                        <input type="text" class="form-control" id="login" name="login" value="{{ document_detail.login_button_xpath }}"placeholder="Login Button Xpath">
+                    </div>
+                    <div class="form-group">
                         <label for="username">Username</label>
                         <input type="text" class="form-control" id="username" name="username" value="{{ document_detail.username }}" placeholder="Username">
                     </div>

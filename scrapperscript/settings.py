@@ -151,3 +151,13 @@ FTP_HOSTNAME=env('FTP_HOSTNAME')
 FTP_USERNAME=env('FTP_USERNAME')
 FTP_PASSWORD=env('FTP_PASSWORD')
 FTP_PORT=env('FTP_PORT')
+
+
+# set the celery broker url 
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+  
+# set the celery result backend 
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+  
+# set the celery timezone 
+CELERY_TIMEZONE = 'UTC'

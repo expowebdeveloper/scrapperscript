@@ -37,6 +37,8 @@
                                 <th class="sorting" tabindex="0" aria-controls="example2" rowspan="1" colspan="1" aria-label="Browser: activate to sort column ascending">Website Link</th>
                                 <th class="sorting" tabindex="0" aria-controls="example2" rowspan="1" colspan="1" aria-label="Platform(s): activate to sort column ascending">Username</th>
                                 <!-- <th class="sorting" tabindex="0" aria-controls="example2" rowspan="1" colspan="1" aria-label="Platform(s): activate to sort column ascending">Price Xpath</th> -->
+                                <th class="sorting" tabindex="0" aria-controls="example2" rowspan="1" colspan="1" aria-label="Interval: activate to sort column ascending">Interval</th> <!-- New Column -->
+
                                 <th class="sorting" tabindex="0" aria-controls="example2" rowspan="1" colspan="1" aria-label="Engine version: activate to sort column ascending">Action</th>
                             </tr>
 
@@ -49,8 +51,19 @@
                                     </td>
                                     <td>{{ item.username}}</td>
                                     <!-- <td>{{ item.price_xpath}}</td> -->
+                                    <td>
+                                        <form class="interval-form">
+                                            <input type="number" name="interval" value="{{ item.interval }}" class="form-control d-inline" style="width: auto; display: inline-block;" min="1">
+                                            <select name="unit" class="form-select d-inline" style="width: auto; display: inline-block;">
+                                                <option value="hours" {% if item.unit == 'hours' %}selected{% endif %}>Hours</option>
+                                                <option value="days" {% if item.unit == 'days' %}selected{% endif %}>Days</option>
+                                                <option value="weeks" {% if item.unit == 'weeks' %}selected{% endif %}>Weeks</option>
+                                            </select>
+                                        </form>
+                                    </td>
                                     <td><a href="{% url 'edit-document' item.id %}" class="me-2"><i class="fas fa-pencil-alt"></i></a><i class="fa-solid fa-trash fa-fw item-delete text-danger" data-bs-toggle="modal"
-                                        data-bs-target="#openmodaldelete" data-delete-item-id="{{ item.id }}"></i><input type="hidden" class="delete-itemid" value="{{item.id}}"></td>                        
+                                        data-bs-target="#openmodaldelete" data-delete-item-id="{{ item.id }}"></i><input type="hidden" class="delete-itemid" value="{{item.id}}"></td>  
+                                                          
                                 </tr>
                             {% endfor %}       
 

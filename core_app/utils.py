@@ -1,11 +1,24 @@
 import requests
 from lxml import html
-import pandas as pd
 from urllib.parse import urlparse
 from django.conf import settings
 import os 
 import re
 
+from selenium.webdriver.support.ui import WebDriverWait
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+import shutil
+import tempfile
+import logging
+
+logger = logging.getLogger(__name__)
 
 def get_domain_name(url):
     '''
@@ -51,7 +64,209 @@ def is_valid_url(url):
 
     return re.match(regex, url) is not None
 
+def get_most_recent_file(directory, extension='.csv'):
+    """Get the most recently modified file in the directory with the specified extension."""
+    files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith(extension)]
+    if not files:
+        return None
+    return max(files, key=os.path.getmtime)
 
+
+def wait_for_download_complete(download_dir, timeout=120):
+    """Wait for the file download to complete."""
+    start_time = time.time()
+    while True:
+        # Get list of files in download directory
+        files = [os.path.join(download_dir, f) for f in os.listdir(download_dir)]
+        if files:
+            # Get the most recently modified file
+            latest_file = max(files, key=os.path.getmtime)
+            # Check if the file size remains constant for a period of time
+            try:
+                initial_size = os.path.getsize(latest_file)
+                time.sleep(5)  # Wait for a while
+                final_size = os.path.getsize(latest_file)
+                if initial_size == final_size:
+                    return latest_file
+            except FileNotFoundError:
+                # File might be deleted if the download failed
+                continue
+        # Check if we have exceeded the timeout
+        if time.time() - start_time > timeout:
+            print("Download did not complete in time.")
+            return None
+        time.sleep(1)  # Wait before checking again
+
+def login_and_download_file(login_url, username, password, username_xpath, password_xpath, login_xpath, file_download_xpath, inventory):
+    # Create a temporary directory for downloads
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Configure Chrome options
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")  # Run in headless mode
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-popup-blocking")  # Disable popup blocking
+
+        # Set download preferences to use the temporary directory
+        prefs = {
+            "download.default_directory": temp_dir,
+            "download.prompt_for_download": False,
+            "download.directory_upgrade": True,
+            "safebrowsing.enabled": True
+        }
+        chrome_options.add_experimental_option("prefs", prefs)
+
+        # Initialize the WebDriver
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+
+        try:
+            # Navigate to the login page
+            driver.get(login_url)
+            print(f"Navigated to login page: {login_url}")
+
+            # Find and fill the username and password fields
+            driver.find_element(By.XPATH, username_xpath).send_keys(username)
+            driver.find_element(By.XPATH, password_xpath).send_keys(password)
+            print("Filled in username and password")
+
+            # Submit the login form
+            driver.find_element(By.XPATH, login_xpath).click()
+            print("Submitted login form")
+
+            # Wait for redirection or page load
+            WebDriverWait(driver, 10).until(EC.url_changes(login_url))
+            print("Redirected after login")
+
+            # Find and click the download link
+            download_link = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, file_download_xpath))
+            )
+            download_url = download_link.get_attribute('href')
+            print(f"Download URL: {download_url}")
+
+            # Initiate the download
+            download_link.click()
+            print("Clicked download link")
+
+            # Wait for the download to complete
+            downloaded_file = wait_for_download_complete(temp_dir)
+            if downloaded_file:
+                domain_name = get_domain_name(login_url)
+                if inventory:
+                    directory_path = os.path.join(settings.MEDIA_ROOT, domain_name, 'inventory')
+                else:
+                    directory_path = os.path.join(settings.MEDIA_ROOT, domain_name, 'price')
+
+                if not os.path.exists(directory_path):
+                    os.makedirs(directory_path)
+                
+                # Move the file to the specified directory
+                target_path = os.path.join(directory_path, os.path.basename(downloaded_file))
+                print(f"Moving file to: {target_path}")
+                shutil.move(downloaded_file, target_path)
+                relative_path = os.path.relpath(target_path, settings.MEDIA_ROOT)
+                print(f"File saved at: {relative_path}")
+                
+                return relative_path, domain_name, None
+
+            else:
+                print("No downloaded file found.")
+                return None, domain_name, None
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            
+            return None, None, str(e)
+
+        finally:
+            # Close the WebDriver
+            driver.quit()
+            return relative_path, domain_name
+
+
+def login_and_download_file_no_headless(login_url, username, password, username_xpath, password_xpath, login_xpath, file_download_xpath, inventory):
+    # Create a temporary directory for downloads
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Configure Chrome options
+        chrome_options = Options()
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-popup-blocking")  # Disable popup blocking
+        domain_name = get_domain_name(login_url)
+        # Set download preferences to use the temporary directory
+        prefs = {
+            "download.default_directory": temp_dir,
+            "download.prompt_for_download": False,
+            "download.directory_upgrade": True,
+            "safebrowsing.enabled": True
+        }
+        chrome_options.add_experimental_option("prefs", prefs)
+
+        # Initialize the WebDriver
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+
+        try:
+            # Navigate to the login page
+            driver.get(login_url)
+            print(f"Navigated to login page: {login_url}")
+
+            # Find and fill the username and password fields
+            driver.find_element(By.XPATH, username_xpath).send_keys(username)
+            driver.find_element(By.XPATH, password_xpath).send_keys(password)
+            print("Filled in username and password")
+
+            # Submit the login form
+            driver.find_element(By.XPATH, login_xpath).click()
+            print("Submitted login form")
+
+            # Wait for redirection or page load
+            WebDriverWait(driver, 10).until(EC.url_changes(login_url))
+            print("Redirected after login")
+
+            # Find and click the download link
+            download_link = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, file_download_xpath))
+            )
+            download_url = download_link.get_attribute('href')
+            print(f"Download URL: {download_url}")
+
+            # Initiate the download
+            download_link.click()
+            print("Clicked download link")
+
+            # Wait for the download to complete
+            downloaded_file = wait_for_download_complete(temp_dir)
+            if downloaded_file:
+                if inventory:
+                    directory_path = os.path.join(settings.MEDIA_ROOT, domain_name, 'inventory')
+                else:
+                    directory_path = os.path.join(settings.MEDIA_ROOT, domain_name, 'price')
+
+                if not os.path.exists(directory_path):
+                    os.makedirs(directory_path)
+                
+                # Move the file to the specified directory
+                target_path = os.path.join(directory_path, os.path.basename(downloaded_file))
+                shutil.move(downloaded_file, target_path)
+                relative_path = os.path.relpath(target_path, settings.MEDIA_ROOT)
+                
+                return relative_path, domain_name, None
+
+            else:
+                print("No downloaded file found.")
+                return relative_path, domain_name, 'No Downloaded File'
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None, None, str(e)
+
+        finally:
+            # Close the WebDriver
+            driver.quit()
+            return relative_path, domain_name, None
+
+
+   
 def scrape_data_to_csv(url, username=None, password=None):
     '''
         Method to download csv file from the given url and xpath
@@ -65,10 +280,10 @@ def scrape_data_to_csv(url, username=None, password=None):
         # Adjust this part based on the actual structure of your data
         tree = html.fromstring(response.content)
         domain_name = get_domain_name(url)
-        return tree, domain_name
+        return tree, domain_name, None
     except requests.exceptions.RequestException as e:
         print(f"HTTP request failed: {e}")
-        return False, None
+        return False, None, str(e)
 
 
 
@@ -77,37 +292,37 @@ def scrape_inventory(tree_obj, domain_name, url, inventory_xpath):
     # Extract the link to the CSV file using XPath
     inventory_csv_links = tree_obj.xpath(inventory_xpath)
     if inventory_csv_links:
-            csv_link_element = inventory_csv_links[0]
-            
-            csv_url = csv_link_element.get('href')
-            
-            if not csv_url:
-                raise ValueError("No CSV link found for the given XPath")
-            
-            link_text = csv_link_element.text_content().strip()
-            extension = link_text.split('.')
-            directory_path = os.path.join(settings.MEDIA_ROOT, domain_name, 'inventory')
-            if not os.path.exists(directory_path):
-                os.makedirs(directory_path)
-            csv_filename =  os.path.join(directory_path, link_text)
-            inventory_relative_path = os.path.relpath(csv_filename, settings.MEDIA_ROOT)
-            if extension[1] in ['csv', 'xlsx']:
-                # Handle relative URLs
-                if not csv_url.startswith('http'):
-                    from urllib.parse import urljoin
-                    csv_url = urljoin(url, csv_url)
+        csv_link_element = inventory_csv_links[0]
+        
+        csv_url = csv_link_element.get('href')
+        
+        if not csv_url:
+            raise ValueError("No CSV link found for the given XPath")
+        
+        link_text = csv_link_element.text_content().strip()
+        extension = link_text.split('.')
+        directory_path = os.path.join(settings.MEDIA_ROOT, domain_name, 'inventory')
+        if not os.path.exists(directory_path):
+            os.makedirs(directory_path)
+        csv_filename =  os.path.join(directory_path, link_text)
+        inventory_relative_path = os.path.relpath(csv_filename, settings.MEDIA_ROOT)
+        if extension[1] in ['csv', 'xlsx']:
+            # Handle relative URLs
+            if not csv_url.startswith('http'):
+                from urllib.parse import urljoin
+                csv_url = urljoin(url, csv_url)
 
-                # Download the CSV file
-                csv_response = requests.get(csv_url)
-                csv_response.raise_for_status()  # Check if the request was successful
-                # Save the CSV file to the specified download path
-                with open(csv_filename, 'wb') as f:
-                    f.write(csv_response.content)
-            
-                print(f"Data successfully saved to {csv_filename}")
-                return True, inventory_relative_path
+            # Download the CSV file
+            csv_response = requests.get(csv_url)
+            csv_response.raise_for_status()  # Check if the request was successful
+            # Save the CSV file to the specified download path
+            with open(csv_filename, 'wb') as f:
+                f.write(csv_response.content)
+        
+            print(f"Data successfully saved to {csv_filename}")
+            return inventory_relative_path, True, None
 
-    return False, None
+    return False, None, 'Download Link Not Found'
 def scrape_price(tree_obj, domain_name, url, price_xpath):
     price_csv_links = tree_obj.xpath(price_xpath)
     if price_csv_links:
@@ -139,8 +354,8 @@ def scrape_price(tree_obj, domain_name, url, price_xpath):
                 f.write(csv_response.content)
         
             print(f"Data successfully saved to {csv_filename}")
-            return True, relative_path
-    return False, None
+            return relative_path, True, None
+    return False, None,  'Download Link Not Found'
 
 def get_relative_path(file_field, media_root):
     # Get the absolute path of the file
