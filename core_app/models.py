@@ -40,8 +40,8 @@ class FtpDetail(BaseModel):
 
 class VendorSourceFile(BaseModel):
     vendor = models.ForeignKey(VendorSource, on_delete=models.CASCADE)
-    inventory_document = models.FileField(upload_to='media')
-    price_document = models.FileField(upload_to='media')
+    inventory_document = models.FileField(upload_to='media', null=True, blank=True)
+    price_document = models.FileField(upload_to='media', null=True, blank=True)
 
 
 class VendorLogs(BaseModel):

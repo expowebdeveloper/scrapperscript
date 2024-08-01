@@ -7,7 +7,8 @@ from django.http import HttpResponseRedirect, HttpResponse, Http404
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
-from core_app.utils import is_valid_url, scrape_data_to_csv, scrape_inventory, scrape_price, connect_ftp, ftp_upload_file, disconnect_ftp, get_relative_path, login_and_download_file
+from core_app.utils import is_valid_url, scrape_data_to_csv, scrape_inventory, scrape_price, get_relative_path, connect_ftp, ftp_upload_file, disconnect_ftp
+from core_app.tasks import login_and_download_file
 from core_app.models import VendorSource, FtpDetail, VendorSourceFile, VendorLogs
 from django.conf import settings
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -97,11 +98,12 @@ class AddDetailView(View):
         password: Optional[str] = request.POST.get("password")
         price_xpath: Optional[str] = request.POST.get("price")
         inventory_xpath: Optional[str] = request.POST.get("inventory")
+        interval: Optional[int] = request.POST.get("interval")
+        interval_unit: Optional[str] = request.POST.get("unit")
         message = ''
         result = is_valid_url(website)
         if result:
             
-            print(login_button_xpath,'login_button_xpath', username_xpath, 'username_xpath',password_xpath, password_xpath )
             xpath_data = {}
             xpath_data['login_button_xpath'] = login_button_xpath if login_button_xpath else ""
             xpath_data['username_xpath'] = username_xpath if username_xpath else ""
@@ -110,12 +112,25 @@ class AddDetailView(View):
             xpath_data['inventory'] = inventory_xpath
              # Convert the dictionary to JSON format
             xpath_json = json.dumps(xpath_data)
-            vendor = VendorSource.objects.create(
-                    website = website,
-                    username = username,
-                    password = password,
-                    xpath  = xpath_json
-                )
+            vendor = VendorSource.objects.filter(website=website).last()
+            if vendor:
+                vendor.website= website
+                vendor.username = username
+                vendor.password = password
+                vendor.xpath = xpath_json
+                vendor.unit = interval_unit
+                vendor.interval = interval
+                vendor.save()
+
+            else:
+                vendor = VendorSource.objects.create(
+                        website = website,
+                        username = username,
+                        password = password,
+                        xpath  = xpath_json,
+                        interval = interval,
+                        unit = interval_unit
+                    )
             vendor_log = VendorLogs.objects.create(vendor=vendor)
             # Add price_xpath to the dictionary if it's provided
             if price_xpath:
@@ -123,78 +138,107 @@ class AddDetailView(View):
                 #scrape data for Price
                 try:
                     if username and password:
-                        price_inventory_result = login_and_download_file(website, username, password, username_xpath, password_xpath,login_button_xpath, price_xpath, False)
-                        message = price_inventory_result[2]
+                        price_inventory_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, price_xpath, vendor.id, False)
                     else:
                         scrapped_data = scrape_data_to_csv(website)
                         price_inventory_result = scrape_price(scrapped_data[0], scrapped_data[1], website, price_xpath)
-                        message = price_inventory_result[2]
+                        if price_inventory_result[1]:
+                            vendor_log.file_download = True
+                            vendor_log.save()
+                            vendor_file = VendorSourceFile.objects.create(
+                                vendor = vendor,
+                                price_document = price_inventory_result[0]
+                            )
+                            ftp_detail =  FtpDetail.objects.all().last()
+                            if ftp_detail:
+                                try:
+                                    ftp_server = connect_ftp(ftp_detail.host, ftp_detail.username, ftp_detail.password)
+                                except Exception as e:
+                                    message = "Not able to connect to FTP Server"
+                                    vendor_log.reason = message
+                                    vendor_log.save()
+                                    return render(request, self.template_name, context={"message":message})
+                                else: 
+                                    try:
+                                        price_relative_path = get_relative_path(vendor_file.price_document, settings.MEDIA_ROOT)
+
+                                        ftp_upload_file(ftp_server, price_relative_path)
+                                        vendor_log.file_upload = True
+                                        vendor_log.save()
+                                    except Exception as e:
+                                        
+                                        return render(request, self.template_name, context={"message":str(e)})
+                                    finally:
+                                        disconnect_ftp(ftp_server)
+                            else:
+                                message = "No FTP Detail Found"
+                                vendor_log.reason = message
+                                vendor_log.save()
+                                return render(request, self.template_name, context={"message":message})
+                        else:
+                            message = "Invalid Xpaths"
+                            vendor_log.reason = message
+                            vendor_log.save()
+                            return render(request, self.template_name, context={"message":message})
                 except Exception as e:
                     message='Failed downloading Price data'
                     vendor_log.reason = message
                     vendor_log.save()
-                    return render(request, self.template_name, context={"message":message})
+
 
             # Add inventory_xpath to the dictionary if it's provided
             if inventory_xpath:
-                
                 try:
                     #scrape data for Inventory
                     if username and password:
-                        inventory_file_result = login_and_download_file(website, username, password, username_xpath, password_xpath,login_button_xpath, inventory_xpath, True)
-                        message = inventory_file_result[2]
+                        inventory_file_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, inventory_xpath, vendor.id, True)
                     else:
                         scrapped_data = scrape_data_to_csv(website)
                         inventory_file_result = scrape_inventory(scrapped_data[0], scrapped_data[1], website, inventory_xpath)
-                        message = inventory_file_result[2]
+                        if inventory_file_result[1]:
+                            vendor_log.file_download = True
+                            vendor_log.save()
+                            vendor_file = VendorSourceFile.objects.create(
+                                vendor = vendor,
+                                inventory_document = inventory_file_result[0]
+                            )
+                            ftp_detail =  FtpDetail.objects.all().last()
+                            if ftp_detail:
+                                try:
+                                    ftp_server = connect_ftp(ftp_detail.host, ftp_detail.username, ftp_detail.password)
+                                except Exception as e:
+                                    message = "Not able to connect to FTP Server"
+                                    vendor_log.reason = message
+                                    vendor_log.save()
+                                    return render(request, self.template_name, context={"message":message})
+                                else: 
+                                    try:
+                                        inventory_relative_path = get_relative_path(vendor_file.inventory_document, settings.MEDIA_ROOT)
+
+                                        ftp_upload_file(ftp_server, inventory_relative_path)
+                                        vendor_log.file_upload = True
+                                        vendor_log.save()
+                                    except Exception as e:
+                                        
+                                        return render(request, self.template_name, context={"message":str(e)})
+                                    finally:
+                                        disconnect_ftp(ftp_server)
+                            else:
+                                message = "No FTP Detail Found"
+                                vendor_log.reason = message
+                                vendor_log.save()
+                                return render(request, self.template_name, context={"message":message})
+                        else:
+                            message = "Invalid Xpaths"
+                            vendor_log.reason = message
+                            vendor_log.save()
+                            return render(request, self.template_name, context={"message":message})
                 except Exception as e:
                     message='Failed downloading Inventory data'
                     vendor_log.reason = message
                     vendor_log.save()
-                    return render(request, self.template_name, context={"message":message})
-            
-           
-            if inventory_file_result[1] and price_inventory_result[1]:
-                vendor_log.file_download = True
-                vendor_log.save()
-                vendor_file = VendorSourceFile.objects.create(
-                    vendor = vendor,
-                    inventory_document = inventory_file_result[0],
-                    price_document = price_inventory_result[0]
-                )
-                ftp_detail =  FtpDetail.objects.all().last()
-                if ftp_detail:
-                    try:
-                        ftp_server = connect_ftp(ftp_detail.host, ftp_detail.username, ftp_detail.password)
-                    except Exception as e:
-                        message = "Not able to connect to FTP Server"
-                        vendor_log.reason = message
-                        vendor_log.save()
-                        return render(request, self.template_name, context={"message":message})
-                    else: 
-                        try:
-                            inventory_relative_path = get_relative_path(vendor_file.inventory_document, settings.MEDIA_ROOT)
-                            price_relative_path = get_relative_path(vendor_file.price_document, settings.MEDIA_ROOT)
-
-                            ftp_upload_file(ftp_server, inventory_relative_path)
-                            ftp_upload_file(ftp_server, price_relative_path)
-                            vendor_log.file_upload = True
-                            vendor_log.save()
-                        except Exception as e:
-                            
-                            return render(request, self.template_name, context={"message":str(e)})
-                        finally:
-                            disconnect_ftp(ftp_server)
-                else:
-                    message = "No FTP Detail Found"
-                    vendor_log.reason = message
-                    vendor_log.save()
-                    return render(request, self.template_name, context={"message":message})
-            else:
-                message = "Invalid Xpaths"
-                vendor_log.reason = message
-                vendor_log.save()
                 return render(request, self.template_name, context={"message":message})
+
             return HttpResponseRedirect(reverse("dashboard"))
         else:
             message = "Enter Valid Website Link"
@@ -248,6 +292,8 @@ class EditDocumentView(View):
             password: Optional[str] = request.POST.get("password")
             price_xpath: Optional[str] = request.POST.get("price")
             inventory_xpath: Optional[str] = request.POST.get("inventory")
+            interval: Optional[str] = request.POST.get("interval")
+            interval_unit: Optional[str] = request.POST.get("unit")
 
 
             result = is_valid_url(website)
@@ -256,6 +302,8 @@ class EditDocumentView(View):
                 document_detail.website = website
                 document_detail.username = username
                 document_detail.password = password
+                document_detail.interval = interval
+                document_detail.unit = interval_unit
                 xpath_data = {}
                 if price_xpath:
                     xpath_data['price'] = price_xpath

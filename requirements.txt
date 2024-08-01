@@ -1,6 +1,7 @@
 amqp==5.2.0
 appdirs==1.4.4
 asgiref==3.8.1
+async-timeout==4.0.3
 attrs==23.2.0
 beautifulsoup4==4.12.3
 billiard==4.2.0
@@ -41,6 +42,7 @@ PySocks==1.7.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 pytz==2024.1
+redis==5.0.8
 requests==2.32.3
 requests-html==0.10.0
 selenium==4.23.0

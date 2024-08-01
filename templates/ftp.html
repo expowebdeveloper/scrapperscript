@@ -27,7 +27,6 @@
                                         <th>Password</th>
                                         <th>Host</th>
                                         <th>Port</th>
-                                        <th>Interval (In Days)</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
@@ -38,7 +37,6 @@
                                             <td>{{ ftp.password }}</td>
                                             <td>{{ ftp.host }}</td>
                                             <td>{{ ftp.port }}</td>
-                                            <td>{{ ftp.interval }}</td>
                                             <td>
                                                 <a href="{% url 'create-ftp' %}" class="me-2"><i class="fas fa-pencil-alt"></i></a>
                                                 <i class="fa-solid fa-trash fa-fw item-delete text-danger" data-bs-toggle="modal"

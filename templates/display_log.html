@@ -26,13 +26,13 @@
                             {% for item in page_objects.object_list %}
                                 <tr>
                                     <td class="dtr-control sorting_1" tabindex="0">{{item.vendor.website}}</td>
-                                    <td> {% if item.file_download%} <span style="color:#0c9e18;font-size:11pt"> &#10003; Success </span>  {% else %}<span style="color:#f10d0d;font-size:11pt"> &#x2718;  Faild </span>
+                                    <td> {% if item.file_download%} <span style="color:#0c9e18;font-size:11pt"> &#10003; Success </span>  {% else %}<span style="color:#f10d0d;font-size:11pt"> &#x2718;  Failed </span>
                                         {%endif%}
                                     </td>
-                                    <td> {% if item.file_upload%}<span style="color:#0c9e18;font-size:11pt"> &#10003; Success </span> {% else %}<span style="color:#f10d0d;font-size:11pt"> &#x2718;  </span>
+                                    <td> {% if item.file_upload%}<span style="color:#0c9e18;font-size:11pt"> &#10003; Success </span> {% else %}<span style="color:#f10d0d;font-size:11pt"> &#x2718;  Failed</span>
                                         {%endif%}
                                     </td>
-                                    <td class="dtr-control sorting_1" tabindex="0">{{item.reason}}</td>   
+                                    <td class="dtr-control sorting_1" tabindex="0">{% if item.reason %}{{item.reason}}{% endif %}</td>   
                                     <td class="dtr-control sorting_1" tabindex="0">{{item.created_at}}</td>                    
                                 </tr>
                             {% endfor %}       

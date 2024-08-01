@@ -1,5 +1,4 @@
 import requests
-from lxml import html
 from urllib.parse import urlparse
 from django.conf import settings
 import os 
@@ -17,6 +16,9 @@ from webdriver_manager.chrome import ChromeDriverManager
 import shutil
 import tempfile
 import logging
+from datetime import datetime, timedelta
+from lxml import html
+
 
 logger = logging.getLogger(__name__)
 
@@ -183,89 +185,6 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
             driver.quit()
             return relative_path, domain_name
 
-
-def login_and_download_file_no_headless(login_url, username, password, username_xpath, password_xpath, login_xpath, file_download_xpath, inventory):
-    # Create a temporary directory for downloads
-    with tempfile.TemporaryDirectory() as temp_dir:
-        # Configure Chrome options
-        chrome_options = Options()
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-popup-blocking")  # Disable popup blocking
-        domain_name = get_domain_name(login_url)
-        # Set download preferences to use the temporary directory
-        prefs = {
-            "download.default_directory": temp_dir,
-            "download.prompt_for_download": False,
-            "download.directory_upgrade": True,
-            "safebrowsing.enabled": True
-        }
-        chrome_options.add_experimental_option("prefs", prefs)
-
-        # Initialize the WebDriver
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-
-        try:
-            # Navigate to the login page
-            driver.get(login_url)
-            print(f"Navigated to login page: {login_url}")
-
-            # Find and fill the username and password fields
-            driver.find_element(By.XPATH, username_xpath).send_keys(username)
-            driver.find_element(By.XPATH, password_xpath).send_keys(password)
-            print("Filled in username and password")
-
-            # Submit the login form
-            driver.find_element(By.XPATH, login_xpath).click()
-            print("Submitted login form")
-
-            # Wait for redirection or page load
-            WebDriverWait(driver, 10).until(EC.url_changes(login_url))
-            print("Redirected after login")
-
-            # Find and click the download link
-            download_link = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, file_download_xpath))
-            )
-            download_url = download_link.get_attribute('href')
-            print(f"Download URL: {download_url}")
-
-            # Initiate the download
-            download_link.click()
-            print("Clicked download link")
-
-            # Wait for the download to complete
-            downloaded_file = wait_for_download_complete(temp_dir)
-            if downloaded_file:
-                if inventory:
-                    directory_path = os.path.join(settings.MEDIA_ROOT, domain_name, 'inventory')
-                else:
-                    directory_path = os.path.join(settings.MEDIA_ROOT, domain_name, 'price')
-
-                if not os.path.exists(directory_path):
-                    os.makedirs(directory_path)
-                
-                # Move the file to the specified directory
-                target_path = os.path.join(directory_path, os.path.basename(downloaded_file))
-                shutil.move(downloaded_file, target_path)
-                relative_path = os.path.relpath(target_path, settings.MEDIA_ROOT)
-                
-                return relative_path, domain_name, None
-
-            else:
-                print("No downloaded file found.")
-                return relative_path, domain_name, 'No Downloaded File'
-
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return None, None, str(e)
-
-        finally:
-            # Close the WebDriver
-            driver.quit()
-            return relative_path, domain_name, None
-
-
    
 def scrape_data_to_csv(url, username=None, password=None):
     '''
@@ -323,6 +242,7 @@ def scrape_inventory(tree_obj, domain_name, url, inventory_xpath):
             return inventory_relative_path, True, None
 
     return False, None, 'Download Link Not Found'
+
 def scrape_price(tree_obj, domain_name, url, price_xpath):
     price_csv_links = tree_obj.xpath(price_xpath)
     if price_csv_links:
@@ -427,3 +347,27 @@ def disconnect_ftp(ftp_server):
       
     # Close the Connection
     ftp_server.quit()
+
+
+def check_and_run_task(created_at, interval_days):
+    """
+    Checks if the current date matches the created_at date plus the interval.
+    If it matches, run the Celery task.
+
+    :param created_at: The date the record was created
+    :param interval_days: The interval in days after which the task should be run
+    """
+    from .models import VendorSource
+    vendors = VendorSource.objects.all()
+    # Calculate the target date
+    run_task_vendors = []
+    for vendor in vendors:
+        target_date = vendor.created_at + timedelta(days=vendor.interval_days)
+        
+        # Get the current date
+        current_date = datetime.now().date()
+        
+        # Check if today matches the target date
+        if current_date == target_date:
+            run_task_vendors.append(vendor.id)
+            
