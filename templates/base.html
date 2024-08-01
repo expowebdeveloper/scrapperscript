@@ -22,15 +22,15 @@
     <nav id="sidebar" class="sidbar">
         <button class="close_sidebar">&times;</button>
           <ul class="list-unstyled components">
-              <li class="active home">
-                  <a  href="{% url 'dashboard' %} " aria-expanded="false" class="home-heading">Home</a>
-              </li>
-              <li class="active home">
-                <a  href="{% url 'list-ftp' %} " aria-expanded="false" class="home-heading">FTP</a>
-            </li>
-            <li class="active home">
-                <a  href="{% url 'all-logs' %} " aria-expanded="false" class="home-heading">Logs</a>
-            </li>
+            <a href="{% url 'dashboard' %} " aria-expanded="false" class="home-heading"><li class="active home">
+                  Home
+              </li></a>
+              <a  href="{% url 'list-ftp' %} " aria-expanded="false" class="home-heading"> <li class="active home">
+                FTP
+            </li></a>
+            <a  href="{% url 'all-logs' %} " aria-expanded="false" class="home-heading"><li class="active home">
+                Logs
+            </li></a>
           </ul>
     </nav>
     <div id="content">
