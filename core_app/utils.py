@@ -22,9 +22,12 @@ from lxml import html
 
 logger = logging.getLogger(__name__)
 
+from urllib.parse import urlparse
+
 def get_domain_name(url):
     '''
-        Method to get domain name from url
+    Method to get the base domain name from a URL.
+    Handles cases with or without subdomains and different URL structures.
     '''
     try:
         # Parse the URL
@@ -33,14 +36,22 @@ def get_domain_name(url):
         # Extract the domain name (netloc)
         domain_name = parsed_url.netloc
         
-        # Handle cases where the URL might have www or other subdomains
+        # Remove 'www.' if it exists
         if domain_name.startswith('www.'):
             domain_name = domain_name[4:]
-            domain  = domain_name
-            domain_name = domain.split('.')
-            return domain_name[0]
+        
+        # Split by '.' and handle cases with multiple domain levels
+        domain_parts = domain_name.split('.')
+        
+        # Handle cases where there might be multiple domain parts
+        if len(domain_parts) > 2:
+            # Typically, the base domain is the second-to-last part
+            return '.'.join(domain_parts[-2:])
+        else:
+            return domain_parts[0]
+    
     except Exception as e:
-        print(f"Error parsing URL: {e}")
+        logger.error(f"Error parsing URL: {e}")
         return None
 
 
