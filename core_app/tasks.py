@@ -10,6 +10,7 @@ import tempfile
 from lxml import html
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from requests.exceptions import RequestException
+from selenium.webdriver.chrome.service import Service as ChromeService
 
 import os
 from django.conf import settings
@@ -41,7 +42,13 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
         chrome_options.add_experimental_option("prefs", prefs)
 
         # Initialize the WebDriver
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+        # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+        #for Server User
+        path = "/usr/bin/chromedriver"
+        # Install and setup ChromeDriver service
+        service = ChromeService(executable_path=path)
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+
         vendor_source = VendorSource.objects.filter(id=vendor).last()
         vendor_log = VendorLogs.objects.create(vendor=vendor_source)
         try:
