@@ -16,6 +16,7 @@ class VendorSource(BaseModel):
         ('weeks', 'Weeks'),
     ]
     website =  models.CharField(max_length=255)
+    file_url = models.CharField(max_length=255, null=True, blank=True)
     username =  models.CharField(max_length=200, null=True, blank=True)
     password =  models.CharField(max_length=100, null=True, blank=True)
     xpath =  models.JSONField(default=dict())

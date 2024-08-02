@@ -218,9 +218,10 @@ def scrape_data_to_csv(url, username=None, password=None):
 
 
 def scrape_inventory(tree_obj, domain_name, url, inventory_xpath):
-        
+    print(tree_obj,'=================treeeeee')
     # Extract the link to the CSV file using XPath
     inventory_csv_links = tree_obj.xpath(inventory_xpath)
+
     if inventory_csv_links:
         csv_link_element = inventory_csv_links[0]
         

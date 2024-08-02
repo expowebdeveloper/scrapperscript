@@ -100,6 +100,7 @@ class AddDetailView(View):
         inventory_xpath: Optional[str] = request.POST.get("inventory")
         interval: Optional[int] = request.POST.get("interval")
         interval_unit: Optional[str] = request.POST.get("unit")
+        file_url: Optional[str] = request.POST.get('file_url')
         message = ''
         result = is_valid_url(website)
         if result:
@@ -120,6 +121,7 @@ class AddDetailView(View):
                 vendor.xpath = xpath_json
                 vendor.unit = interval_unit
                 vendor.interval = interval
+                vendor.file_url = file_url
                 vendor.save()
 
             else:
@@ -129,6 +131,7 @@ class AddDetailView(View):
                         password = password,
                         xpath  = xpath_json,
                         interval = interval,
+                        file_url = file_url,
                         unit = interval_unit
                     )
             vendor_log = VendorLogs.objects.create(vendor=vendor)
@@ -137,49 +140,7 @@ class AddDetailView(View):
                 
                 #scrape data for Price
                 try:
-                    if username and password:
-                        price_inventory_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, price_xpath, vendor.id, False)
-                    else:
-                        scrapped_data = scrape_data_to_csv(website)
-                        price_inventory_result = scrape_price(scrapped_data[0], scrapped_data[1], website, price_xpath)
-                        if price_inventory_result[1]:
-                            vendor_log.file_download = True
-                            vendor_log.save()
-                            vendor_file = VendorSourceFile.objects.create(
-                                vendor = vendor,
-                                price_document = price_inventory_result[0]
-                            )
-                            ftp_detail =  FtpDetail.objects.all().last()
-                            if ftp_detail:
-                                try:
-                                    ftp_server = connect_ftp(ftp_detail.host, ftp_detail.username, ftp_detail.password)
-                                except Exception as e:
-                                    message = "Not able to connect to FTP Server"
-                                    vendor_log.reason = message
-                                    vendor_log.save()
-                                    return render(request, self.template_name, context={"message":message})
-                                else: 
-                                    try:
-                                        price_relative_path = get_relative_path(vendor_file.price_document, settings.MEDIA_ROOT)
-
-                                        ftp_upload_file(ftp_server, price_relative_path)
-                                        vendor_log.file_upload = True
-                                        vendor_log.save()
-                                    except Exception as e:
-                                        
-                                        return render(request, self.template_name, context={"message":str(e)})
-                                    finally:
-                                        disconnect_ftp(ftp_server)
-                            else:
-                                message = "No FTP Detail Found"
-                                vendor_log.reason = message
-                                vendor_log.save()
-                                return render(request, self.template_name, context={"message":message})
-                        else:
-                            message = "Invalid Xpaths"
-                            vendor_log.reason = message
-                            vendor_log.save()
-                            return render(request, self.template_name, context={"message":message})
+                    price_inventory_result = login_and_download_file(website, username, password, username_xpath, password_xpath, login_button_xpath, price_xpath, vendor.id, False, file_url)                
                 except Exception as e:
                     message='Failed downloading Price data'
                     vendor_log.reason = message
@@ -190,49 +151,7 @@ class AddDetailView(View):
             if inventory_xpath:
                 try:
                     #scrape data for Inventory
-                    if username and password:
-                        inventory_file_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, inventory_xpath, vendor.id, True)
-                    else:
-                        scrapped_data = scrape_data_to_csv(website)
-                        inventory_file_result = scrape_inventory(scrapped_data[0], scrapped_data[1], website, inventory_xpath)
-                        if inventory_file_result[1]:
-                            vendor_log.file_download = True
-                            vendor_log.save()
-                            vendor_file = VendorSourceFile.objects.create(
-                                vendor = vendor,
-                                inventory_document = inventory_file_result[0]
-                            )
-                            ftp_detail =  FtpDetail.objects.all().last()
-                            if ftp_detail:
-                                try:
-                                    ftp_server = connect_ftp(ftp_detail.host, ftp_detail.username, ftp_detail.password)
-                                except Exception as e:
-                                    message = "Not able to connect to FTP Server"
-                                    vendor_log.reason = message
-                                    vendor_log.save()
-                                    return render(request, self.template_name, context={"message":message})
-                                else: 
-                                    try:
-                                        inventory_relative_path = get_relative_path(vendor_file.inventory_document, settings.MEDIA_ROOT)
-
-                                        ftp_upload_file(ftp_server, inventory_relative_path)
-                                        vendor_log.file_upload = True
-                                        vendor_log.save()
-                                    except Exception as e:
-                                        
-                                        return render(request, self.template_name, context={"message":str(e)})
-                                    finally:
-                                        disconnect_ftp(ftp_server)
-                            else:
-                                message = "No FTP Detail Found"
-                                vendor_log.reason = message
-                                vendor_log.save()
-                                return render(request, self.template_name, context={"message":message})
-                        else:
-                            message = "Invalid Xpaths"
-                            vendor_log.reason = message
-                            vendor_log.save()
-                            return render(request, self.template_name, context={"message":message})
+                    inventory_file_result = login_and_download_file(website, username, password, username_xpath, password_xpath, login_button_xpath, inventory_xpath, vendor.id, True, file_url)
                 except Exception as e:
                     message='Failed downloading Inventory data'
                     vendor_log.reason = message
@@ -274,6 +193,7 @@ class EditDocumentView(View):
         document_detail.password_xpath = xpath_data.get('password_xpath', '')
         document_detail.login_button_xpath = xpath_data.get('login_button_xpath', '')
         return render(request, self.template_name, context={"document_detail":document_detail})
+
     def post(self, request, id):
         '''
         This method will update the detail of the existing record.
@@ -294,6 +214,7 @@ class EditDocumentView(View):
             inventory_xpath: Optional[str] = request.POST.get("inventory")
             interval: Optional[str] = request.POST.get("interval")
             interval_unit: Optional[str] = request.POST.get("unit")
+            file_url: Optional[str] = request.POST.get("file_url")
 
 
             result = is_valid_url(website)
@@ -304,6 +225,7 @@ class EditDocumentView(View):
                 document_detail.password = password
                 document_detail.interval = interval
                 document_detail.unit = interval_unit
+                document_detail.file_url = file_url
                 xpath_data = {}
                 if price_xpath:
                     xpath_data['price'] = price_xpath

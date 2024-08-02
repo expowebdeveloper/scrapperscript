@@ -21,8 +21,8 @@ from .models import VendorLogs, VendorSourceFile, FtpDetail, VendorSource
 import requests
 
 
-@shared_task
-def login_and_download_file(login_url, username, password, username_xpath, password_xpath, login_xpath, file_download_xpath, vendor, inventory):
+# @shared_task
+def login_and_download_file(login_url, username, password, username_xpath, password_xpath, login_xpath, file_download_xpath, vendor, inventory, file_download_url=""):
     # Create a temporary directory for downloads
     with tempfile.TemporaryDirectory() as temp_dir:
         # Configure Chrome options
@@ -43,9 +43,8 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
 
         # Initialize the WebDriver
         # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-        #for Server User
+        #for Server Use
         path = "/usr/bin/chromedriver"
-        # Install and setup ChromeDriver service
         service = ChromeService(executable_path=path)
         driver = webdriver.Chrome(service=service, options=chrome_options)
 
@@ -55,22 +54,25 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
             # Navigate to the login page
             driver.get(login_url)
             print(f"Navigated to login page: {login_url}")
+            if username and password and username_xpath:
+                # Find and fill the username and password fields
+                driver.find_element(By.XPATH, username_xpath).send_keys(username)
+                driver.find_element(By.XPATH, password_xpath).send_keys(password)
+                print("Filled in username and password")
 
-            # Find and fill the username and password fields
-            driver.find_element(By.XPATH, username_xpath).send_keys(username)
-            driver.find_element(By.XPATH, password_xpath).send_keys(password)
-            print("Filled in username and password")
+                # Submit the login form
+                driver.find_element(By.XPATH, login_xpath).click()
+                print("Submitted login form")
 
-            # Submit the login form
-            driver.find_element(By.XPATH, login_xpath).click()
-            print("Submitted login form")
-
-            # Check if the page redirects or stays on the same page
-            try:
-                WebDriverWait(driver, 10).until(EC.url_changes(login_url))
-                print("Redirected after login")
-            except TimeoutException:
-                print("Page did not redirect after login")
+                # Check if the page redirects or stays on the same page
+                try:
+                    WebDriverWait(driver, 10).until(EC.url_changes(login_url))
+                    print("Redirected after login")
+                except TimeoutException:
+                    print("Page did not redirect after login")
+                if file_download_url:
+                    driver.get(file_download_url)
+                    print(f"Navigated to download page: {file_download_url}")
 
             # Find the download link
             try:
@@ -80,8 +82,11 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
                 download_url = download_link.get_attribute('href')
                 print(f"Download URL: {download_url}")
 
+                if download_url:
+                    driver.get(download_url)
+                    print(f"Navigated to download page: {download_url}")
                 # Check if the URL contains .pdf or .csv
-                if '.pdf' in download_url or '.csv' in download_url:
+                if '.pdf' in download_url or '.csv' in download_url or '.xlsx' in download_url:
                     # Download the file using requests
                     try:
                         response = requests.get(download_url, stream=True)
