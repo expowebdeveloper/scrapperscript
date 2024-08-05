@@ -258,14 +258,14 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
 
             except Exception as e:
                 print(f"An error occurred while finding download link: {e}")
-                message = str(e)
+                message = "Not able to download File"
                 vendor_log.reason = message
                 vendor_log.save()
                 return False
 
         except Exception as e:
             print(f"An error occurred: {e}")
-            message = str(e)
+            message = "Not able to get the Login page"
             vendor_log.reason = message
             vendor_log.save()
             return False

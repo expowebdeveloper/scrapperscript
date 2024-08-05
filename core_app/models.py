@@ -52,3 +52,6 @@ class VendorLogs(BaseModel):
     reason = models.TextField(null=True, blank=True)
     def __str__(self) -> str:
         return self.vendor.website
+    
+    class Meta:
+        ordering = ['-id']

@@ -7,7 +7,7 @@ from django.http import HttpResponseRedirect, HttpResponse, Http404
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
-from core_app.utils import is_valid_url, scrape_data_to_csv, scrape_inventory, scrape_price, get_relative_path, connect_ftp, ftp_upload_file, disconnect_ftp
+from core_app.utils import is_valid_url
 from core_app.tasks import login_and_download_file
 from core_app.models import VendorSource, FtpDetail, VendorSourceFile, VendorLogs
 from django.conf import settings
