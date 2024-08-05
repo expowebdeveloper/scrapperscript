@@ -22,7 +22,7 @@ from .models import VendorLogs, VendorSourceFile, FtpDetail, VendorSource
 import requests
 
 
-@shared_task
+@shared_task(time_limit=300, soft_time_limit=300)
 def login_and_download_file(login_url, username, password, username_xpath, password_xpath, login_xpath, file_download_xpath, vendor, inventory, file_download_url=""):
     # Create a temporary directory for downloads
     try:
@@ -69,7 +69,7 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
 
                     # Check if the page redirects or stays on the same page
                     try:
-                        WebDriverWait(driver, 10).until(EC.url_changes(login_url))
+                        WebDriverWait(driver, 30).until(EC.url_changes(login_url))
                         print("Redirected after login")
                     except TimeoutException:
                         print("Page did not redirect after login")
@@ -79,7 +79,7 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
 
                 # Find the download link
                 try:
-                    download_link = WebDriverWait(driver, 10).until(
+                    download_link = WebDriverWait(driver, 30).until(
                         EC.presence_of_element_located((By.XPATH, file_download_xpath))
                     )
                     download_url = download_link.get_attribute('href')
