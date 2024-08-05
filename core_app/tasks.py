@@ -22,7 +22,7 @@ from .models import VendorLogs, VendorSourceFile, FtpDetail, VendorSource
 import requests
 
 
-@shared_task(time_limit=300, soft_time_limit=300)
+@shared_task
 def login_and_download_file(login_url, username, password, username_xpath, password_xpath, login_xpath, file_download_xpath, vendor, inventory, file_download_url=""):
     # Create a temporary directory for downloads
     try:
