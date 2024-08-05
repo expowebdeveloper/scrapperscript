@@ -140,7 +140,7 @@ class AddDetailView(View):
                 
                 #scrape data for Price
                 try:
-                    price_inventory_result = login_and_download_file(website, username, password, username_xpath, password_xpath, login_button_xpath, price_xpath, vendor.id, False, file_url)                
+                    price_inventory_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, price_xpath, vendor.id, False, file_url)                
                 except Exception as e:
                     message='Failed downloading Price data'
                     vendor_log.reason = message
@@ -151,7 +151,7 @@ class AddDetailView(View):
             if inventory_xpath:
                 try:
                     #scrape data for Inventory
-                    inventory_file_result = login_and_download_file(website, username, password, username_xpath, password_xpath, login_button_xpath, inventory_xpath, vendor.id, True, file_url)
+                    inventory_file_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, inventory_xpath, vendor.id, True, file_url)
                 except Exception as e:
                     message='Failed downloading Inventory data'
                     vendor_log.reason = message
