@@ -11,6 +11,7 @@ from lxml import html
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from requests.exceptions import RequestException
 from selenium.webdriver.chrome.service import Service as ChromeService
+from celery.exceptions import SoftTimeLimitExceeded
 
 import os
 from django.conf import settings
@@ -21,84 +22,169 @@ from .models import VendorLogs, VendorSourceFile, FtpDetail, VendorSource
 import requests
 
 
-@shared_task
+@shared_task(time_limit=300, soft_time_limit=300)
 def login_and_download_file(login_url, username, password, username_xpath, password_xpath, login_xpath, file_download_xpath, vendor, inventory, file_download_url=""):
     # Create a temporary directory for downloads
-    with tempfile.TemporaryDirectory() as temp_dir:
-        # Configure Chrome options
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")  # Run in headless mode
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-popup-blocking")  # Disable popup blocking
-
-        # Set download preferences to use the temporary directory
-        prefs = {
-            "download.default_directory": temp_dir,
-            "download.prompt_for_download": False,
-            "download.directory_upgrade": True,
-            "safebrowsing.enabled": True
-        }
-        chrome_options.add_experimental_option("prefs", prefs)
-
-        # Initialize the WebDriver
-        # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-        #for Server Use
-        path = "/usr/bin/chromedriver"
-        service = ChromeService(executable_path=path)
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-
+    try:
         vendor_source = VendorSource.objects.filter(id=vendor).last()
         vendor_log = VendorLogs.objects.create(vendor=vendor_source)
-        try:
-            # Navigate to the login page
-            driver.get(login_url)
-            print(f"Navigated to login page: {login_url}")
-            if username and password and username_xpath:
-                # Find and fill the username and password fields
-                driver.find_element(By.XPATH, username_xpath).send_keys(username)
-                driver.find_element(By.XPATH, password_xpath).send_keys(password)
-                print("Filled in username and password")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Configure Chrome options
+            chrome_options = Options()
+            chrome_options.add_argument("--headless")  # Run in headless mode
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument("--disable-popup-blocking")  # Disable popup blocking
 
-                # Submit the login form
-                driver.find_element(By.XPATH, login_xpath).click()
-                print("Submitted login form")
+            # Set download preferences to use the temporary directory
+            prefs = {
+                "download.default_directory": temp_dir,
+                "download.prompt_for_download": False,
+                "download.directory_upgrade": True,
+                "safebrowsing.enabled": True
+            }
+            chrome_options.add_experimental_option("prefs", prefs)
 
-                # Check if the page redirects or stays on the same page
-                try:
-                    WebDriverWait(driver, 10).until(EC.url_changes(login_url))
-                    print("Redirected after login")
-                except TimeoutException:
-                    print("Page did not redirect after login")
-                if file_download_url:
-                    driver.get(file_download_url)
-                    print(f"Navigated to download page: {file_download_url}")
+            # Initialize the WebDriver
+            # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+            #for Server Use
+            path = "/usr/bin/chromedriver"
+            service = ChromeService(executable_path=path)
+            driver = webdriver.Chrome(service=service, options=chrome_options)
 
-            # Find the download link
+            
             try:
-                download_link = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.XPATH, file_download_xpath))
-                )
-                download_url = download_link.get_attribute('href')
-                print(f"Download URL: {download_url}")
+                # Navigate to the login page
+                driver.get(login_url)
+                print(f"Navigated to login page: {login_url}")
+                if username and password and username_xpath:
+                    # Find and fill the username and password fields
+                    driver.find_element(By.XPATH, username_xpath).send_keys(username)
+                    driver.find_element(By.XPATH, password_xpath).send_keys(password)
+                    print("Filled in username and password")
 
-                if download_url:
-                    driver.get(download_url)
-                    print(f"Navigated to download page: {download_url}")
-                # Check if the URL contains .pdf or .csv
-                if '.pdf' in download_url or '.csv' in download_url or '.xlsx' in download_url:
-                    # Download the file using requests
+                    # Submit the login form
+                    driver.find_element(By.XPATH, login_xpath).click()
+                    print("Submitted login form")
+
+                    # Check if the page redirects or stays on the same page
                     try:
-                        response = requests.get(download_url, stream=True)
-                        response.raise_for_status()
-                        file_extension = '.pdf' if '.pdf' in download_url else '.csv'
-                        downloaded_file = os.path.join(temp_dir, f"downloaded_file{file_extension}")
-                        with open(downloaded_file, 'wb') as f:
-                            for chunk in response.iter_content(chunk_size=8192):
-                                f.write(chunk)
-                        print(f"Downloaded file saved at: {downloaded_file}")
+                        WebDriverWait(driver, 10).until(EC.url_changes(login_url))
+                        print("Redirected after login")
+                    except TimeoutException:
+                        print("Page did not redirect after login")
+                    if file_download_url:
+                        driver.get(file_download_url)
+                        print(f"Navigated to download page: {file_download_url}")
 
-                        # Process the downloaded file
+                # Find the download link
+                try:
+                    download_link = WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.XPATH, file_download_xpath))
+                    )
+                    download_url = download_link.get_attribute('href')
+                    print(f"Download URL: {download_url}")
+
+                    if download_url:
+                        driver.get(download_url)
+                        print(f"Navigated to download page: {download_url}")
+                    # Check if the URL contains .pdf or .csv
+                    if '.pdf' in download_url or '.csv' in download_url or '.xlsx' in download_url:
+                        # Download the file using requests
+                        try:
+                            response = requests.get(download_url, stream=True)
+                            response.raise_for_status()
+                            file_extension = '.pdf' if '.pdf' in download_url else '.csv'
+                            downloaded_file = os.path.join(temp_dir, f"downloaded_file{file_extension}")
+                            with open(downloaded_file, 'wb') as f:
+                                for chunk in response.iter_content(chunk_size=8192):
+                                    f.write(chunk)
+                            print(f"Downloaded file saved at: {downloaded_file}")
+
+                            # Process the downloaded file
+                            if downloaded_file:
+                                domain_name = get_domain_name(login_url)
+
+                                if inventory:
+                                    directory_path = os.path.join(settings.MEDIA_ROOT, domain_name, 'inventory')
+                                else:
+                                    directory_path = os.path.join(settings.MEDIA_ROOT, domain_name, 'price')
+
+                                if not os.path.exists(directory_path):
+                                    os.makedirs(directory_path)
+
+                                # Move the file to the specified directory
+                                target_path = os.path.join(directory_path, os.path.basename(downloaded_file))
+                                print(f"Moving file to: {target_path}")
+                                shutil.move(downloaded_file, target_path)
+                                relative_path = os.path.relpath(target_path, settings.MEDIA_ROOT)
+                                print(f"File saved at: {relative_path}")
+
+                                vendor_log.file_download = True
+                                vendor_log.save()
+
+                                vendor_file = VendorSourceFile.objects.create(
+                                    vendor=vendor_log.vendor
+                                )
+                                if inventory:
+                                    vendor_file.inventory_document = relative_path
+                                    vendor_file.save()
+                                else:
+                                    vendor_file.price_document = relative_path
+                                    vendor_file.save()
+
+                                ftp_detail = FtpDetail.objects.all().last()
+                                print(f"File saved at: {ftp_detail}")
+                                if ftp_detail:
+                                    print(f"ftp_detail: {ftp_detail}")
+
+                                    try:
+                                        ftp_server = connect_ftp(ftp_detail.host, ftp_detail.username, ftp_detail.password)
+                                    except Exception as e:
+                                        message = "Not able to connect to FTP Server"
+                                        print(f"FTP connection error: {message}")
+
+                                        vendor_log.reason = message
+                                        vendor_log.save()
+                                    else:
+                                        try:
+                                            print(f"Inside FTP server block: {ftp_detail}")
+                                            if inventory:
+                                                inventory_relative_path = get_relative_path(vendor_file.inventory_document, settings.MEDIA_ROOT)
+                                                print(f"Inventory relative path: {inventory_relative_path}")
+                                                ftp_upload_file(ftp_server, inventory_relative_path)
+                                            else:
+                                                price_relative_path = get_relative_path(vendor_file.price_document, settings.MEDIA_ROOT)
+                                                print(f"Price relative path: {price_relative_path}")
+                                                ftp_upload_file(ftp_server, price_relative_path)
+                                            print("File uploaded to FTP server")
+
+                                            vendor_log.file_upload = True
+                                            vendor_log.save()
+                                        except Exception as e:
+                                            vendor_log.reason = str(e)
+                                            vendor_log.save()
+                                        finally:
+                                            disconnect_ftp(ftp_server)
+                                else:
+                                    message = "No FTP Detail Found"
+                                    vendor_log.reason = message
+                                    vendor_log.save()
+                        except RequestException as e:
+                            print(f"Request error: {e}")
+                            vendor_log.reason = str(e)
+                            vendor_log.save()
+                            return False
+
+                    else:
+                        # Continue with the existing click-based download process
+                        download_link.click()
+                        print("Clicked download link")
+                        
+                        # Wait for the download to complete
+                        downloaded_file = wait_for_download_complete(temp_dir)
+                        print("Download complete:", downloaded_file)
+
                         if downloaded_file:
                             domain_name = get_domain_name(login_url)
 
@@ -167,113 +253,39 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
                                 message = "No FTP Detail Found"
                                 vendor_log.reason = message
                                 vendor_log.save()
-                    except RequestException as e:
-                        print(f"Request error: {e}")
-                        vendor_log.reason = str(e)
-                        vendor_log.save()
-                        return False
-
-                else:
-                    # Continue with the existing click-based download process
-                    download_link.click()
-                    print("Clicked download link")
-                    
-                    # Wait for the download to complete
-                    downloaded_file = wait_for_download_complete(temp_dir)
-                    print("Download complete:", downloaded_file)
-
-                    if downloaded_file:
-                        domain_name = get_domain_name(login_url)
-
-                        if inventory:
-                            directory_path = os.path.join(settings.MEDIA_ROOT, domain_name, 'inventory')
                         else:
-                            directory_path = os.path.join(settings.MEDIA_ROOT, domain_name, 'price')
-
-                        if not os.path.exists(directory_path):
-                            os.makedirs(directory_path)
-
-                        # Move the file to the specified directory
-                        target_path = os.path.join(directory_path, os.path.basename(downloaded_file))
-                        print(f"Moving file to: {target_path}")
-                        shutil.move(downloaded_file, target_path)
-                        relative_path = os.path.relpath(target_path, settings.MEDIA_ROOT)
-                        print(f"File saved at: {relative_path}")
-
-                        vendor_log.file_download = True
-                        vendor_log.save()
-
-                        vendor_file = VendorSourceFile.objects.create(
-                            vendor=vendor_log.vendor
-                        )
-                        if inventory:
-                            vendor_file.inventory_document = relative_path
-                            vendor_file.save()
-                        else:
-                            vendor_file.price_document = relative_path
-                            vendor_file.save()
-
-                        ftp_detail = FtpDetail.objects.all().last()
-                        print(f"File saved at: {ftp_detail}")
-                        if ftp_detail:
-                            print(f"ftp_detail: {ftp_detail}")
-
-                            try:
-                                ftp_server = connect_ftp(ftp_detail.host, ftp_detail.username, ftp_detail.password)
-                            except Exception as e:
-                                message = "Not able to connect to FTP Server"
-                                print(f"FTP connection error: {message}")
-
-                                vendor_log.reason = message
-                                vendor_log.save()
-                            else:
-                                try:
-                                    print(f"Inside FTP server block: {ftp_detail}")
-                                    if inventory:
-                                        inventory_relative_path = get_relative_path(vendor_file.inventory_document, settings.MEDIA_ROOT)
-                                        print(f"Inventory relative path: {inventory_relative_path}")
-                                        ftp_upload_file(ftp_server, inventory_relative_path)
-                                    else:
-                                        price_relative_path = get_relative_path(vendor_file.price_document, settings.MEDIA_ROOT)
-                                        print(f"Price relative path: {price_relative_path}")
-                                        ftp_upload_file(ftp_server, price_relative_path)
-                                    print("File uploaded to FTP server")
-
-                                    vendor_log.file_upload = True
-                                    vendor_log.save()
-                                except Exception as e:
-                                    vendor_log.reason = str(e)
-                                    vendor_log.save()
-                                finally:
-                                    disconnect_ftp(ftp_server)
-                        else:
-                            message = "No FTP Detail Found"
+                            message = "Invalid Xpaths or download failed"
                             vendor_log.reason = message
                             vendor_log.save()
-                    else:
-                        message = "Invalid Xpaths or download failed"
-                        vendor_log.reason = message
-                        vendor_log.save()
-                        return False
+                            return False
+
+                except Exception as e:
+                    print(f"An error occurred while finding download link: {e}")
+                    message = "Not able to download File"
+                    vendor_log.reason = message
+                    vendor_log.save()
+                    return False
 
             except Exception as e:
-                print(f"An error occurred while finding download link: {e}")
-                message = "Not able to download File"
+                print(f"An error occurred: {e}")
+                message = "Not able to get the Login page"
                 vendor_log.reason = message
                 vendor_log.save()
                 return False
 
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            message = "Not able to get the Login page"
-            vendor_log.reason = message
-            vendor_log.save()
-            return False
+            finally:
+                # Close the WebDriver
+                driver.quit()
+                return True
+    except SoftTimeLimitExceeded:
+        # Handle the soft time limit exceeded
+        print("Task exceeded soft time limit"
+              )
+        message = "Task exceeded soft download time limit"
+        vendor_log.reason = message
+        vendor_log.save()
+        return True
 
-        finally:
-            # Close the WebDriver
-            driver.quit()
-            return True
 
 @shared_task
 def ftp_upload_file(ftp_server, file_path):
