@@ -17,7 +17,7 @@ import os
 from django.conf import settings
 from datetime import datetime, timedelta
 from celery import shared_task
-from .utils import wait_for_download_complete, get_domain_name, get_relative_path, connect_ftp, disconnect_ftp, ftp_upload_file, scrape_price, scrape_inventory
+from .utils import ensure_https, wait_for_download_complete, get_domain_name, get_relative_path, connect_ftp, disconnect_ftp, ftp_upload_file, scrape_price, scrape_inventory
 from .models import VendorLogs, VendorSourceFile, FtpDetail, VendorSource
 import requests
 
@@ -73,10 +73,11 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
                         print("Redirected after login")
                     except TimeoutException:
                         print("Page did not redirect after login")
-                    if file_download_url:
-                        driver.get(file_download_url)
-                        print(f"Navigated to download page: {file_download_url}")
-
+                if file_download_url:
+                    file_download_url= ensure_https(file_download_url)
+                    driver.get(file_download_url)
+                    print(f"Navigated to download page: {file_download_url}")
+                
                 # Find the download link
                 try:
                     download_link = WebDriverWait(driver, 30).until(
@@ -84,10 +85,6 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
                     )
                     download_url = download_link.get_attribute('href')
                     print(f"Download URL: {download_url}")
-
-                    if download_url:
-                        driver.get(download_url)
-                        print(f"Navigated to download page: {download_url}")
                     # Check if the URL contains .pdf or .csv
                     if '.pdf' in download_url or '.csv' in download_url or '.xlsx' in download_url:
                         # Download the file using requests

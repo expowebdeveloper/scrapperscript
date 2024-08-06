@@ -1,5 +1,5 @@
 import requests
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 from django.conf import settings
 import os 
 import re
@@ -22,7 +22,13 @@ from lxml import html
 
 logger = logging.getLogger(__name__)
 
-from urllib.parse import urlparse
+
+def ensure_https(url):
+    parsed_url = urlparse(url)
+    if not parsed_url.scheme:
+        return urlunparse(('https',) + parsed_url[1:])
+    return url
+
 
 def get_domain_name(url):
     '''
@@ -85,7 +91,7 @@ def get_most_recent_file(directory, extension='.csv'):
     return max(files, key=os.path.getmtime)
 
 
-def wait_for_download_complete(download_dir, timeout=300):
+def wait_for_download_complete(download_dir, timeout=420):
     """Wait for the file download to complete."""
     start_time = time.time()
     while True:
