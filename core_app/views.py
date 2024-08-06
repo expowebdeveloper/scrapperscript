@@ -156,8 +156,10 @@ class AddDetailView(View):
                     message='Failed downloading Inventory data'
                     vendor_log.reason = message
                     vendor_log.save()
-                return render(request, self.template_name, context={"message":message})
-
+            try:
+                VendorLogs.objects.filter(file_download=False, file_upload=False, reason=None).delete()
+            except:
+                pass
             return HttpResponseRedirect(reverse("dashboard"))
         else:
             message = "Enter Valid Website Link"
