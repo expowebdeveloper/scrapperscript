@@ -22,7 +22,7 @@ from .models import VendorLogs, VendorSourceFile, FtpDetail, VendorSource
 import requests
 
 
-@shared_task(time_limit=300, soft_time_limit=300)
+@shared_task(time_limit=333333, soft_time_limit=333333)
 def login_and_download_file(login_url, username, password, username_xpath, password_xpath, login_xpath, file_download_xpath, vendor, inventory, file_download_url=""):
     # Create a temporary directory for downloads
     try:
@@ -392,7 +392,8 @@ def process_due_vendors():
                         login_xpath=xpath_data.get('login_button_xpath', ''),
                         file_download_xpath=xpath_data.get('inventory', ''),
                         vendor=vendor.id,
-                        inventory=True  # or False based on your needs
+                        inventory=True, # or False based on your needs
+                        file_download_url=vendor.file_url
                     )
                     login_and_download_file.delay(
                         login_url=vendor.website,
@@ -403,7 +404,8 @@ def process_due_vendors():
                         login_xpath=xpath_data.get('login_button_xpath', ''),
                         file_download_xpath=xpath_data.get('price', ''),
                         vendor=vendor.id,
-                        inventory=False  # or False based on your needs
+                        inventory=False,  # or False based on your needs
+                        file_download_url=vendor.file_url
                     )
                 else:
                     print(f"Vendor {vendor.website} does not have username or password.")
