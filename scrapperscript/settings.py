@@ -28,7 +28,8 @@ DEBUG = env.bool('DEBUG')
 
 ALLOWED_HOSTS = ['*']
 
-CSRF_TRUSTED_ORIGINS=['https://2aab-103-149-154-217.ngrok-free.app']
+CSRF_TRUSTED_ORIGINS=['https://website.virventures.com']
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -118,6 +119,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
+# TIME_ZONE = 'UTC'
 TIME_ZONE = 'Asia/Kolkata'
 
 USE_TZ = True
