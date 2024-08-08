@@ -136,26 +136,24 @@ class AddDetailView(View):
                     )
             vendor_log = VendorLogs.objects.create(vendor=vendor)
             # Add price_xpath to the dictionary if it's provided
-            if price_xpath:
                 
-                #scrape data for Price
-                try:
-                    price_inventory_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, price_xpath, vendor.id, False, file_url)                
-                except Exception as e:
-                    message='Failed downloading Price data'
-                    vendor_log.reason = message
-                    vendor_log.save()
+            #scrape data for Price
+            try:
+                price_inventory_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, price_xpath, vendor.id, False, file_url)                
+            except Exception as e:
+                message='Failed downloading Price data'
+                vendor_log.reason = message
+                vendor_log.save()
 
 
             # Add inventory_xpath to the dictionary if it's provided
-            if inventory_xpath:
-                try:
-                    #scrape data for Inventory
-                    inventory_file_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, inventory_xpath, vendor.id, True, file_url)
-                except Exception as e:
-                    message='Failed downloading Inventory data'
-                    vendor_log.reason = message
-                    vendor_log.save()
+            try:
+                #scrape data for Inventory
+                inventory_file_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, inventory_xpath, vendor.id, True, file_url)
+            except Exception as e:
+                message='Failed downloading Inventory data'
+                vendor_log.reason = message
+                vendor_log.save()
             try:
                 VendorLogs.objects.filter(file_download=False, file_upload=False, reason=None).delete()
             except:

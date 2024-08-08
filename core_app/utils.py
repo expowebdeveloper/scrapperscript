@@ -224,7 +224,6 @@ def scrape_data_to_csv(url, username=None, password=None):
 
 
 def scrape_inventory(tree_obj, domain_name, url, inventory_xpath):
-    print(tree_obj,'=================treeeeee')
     # Extract the link to the CSV file using XPath
     inventory_csv_links = tree_obj.xpath(inventory_xpath)
 
@@ -326,7 +325,6 @@ def ftp_upload_file(ftp_server, file_path):
     # Check if the file exists
     if not os.path.isfile(f"{settings.MEDIA_ROOT}/{file_path}"):
         raise FileNotFoundError(f"The file {file_path} does not exist.")
-    
     # Extract the filename from the full file path
     file_name = os.path.basename(file_path)
     # Extract the directory path from the full file path
