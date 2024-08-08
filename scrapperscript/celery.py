@@ -19,7 +19,7 @@ app.config_from_object('django.conf:settings',
 app.conf.beat_schedule = {
     'process-vendors-daily': {
         'task': 'core_app.tasks.process_due_vendors',
-        'schedule': crontab(hour=0, minute=0),  # Run daily at midnight
+        'schedule': crontab(minutes=1),  # Run daily at midnight
     },
 }
 
