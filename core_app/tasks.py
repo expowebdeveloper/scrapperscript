@@ -197,7 +197,10 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
                         response = requests.get(download_url, stream=True)
                         response.raise_for_status()
                         file_extension = '.pdf' if '.pdf' in download_url else '.csv' if '.csv' in download_url else '.xlsx'
-                        downloaded_file = os.path.join(temp_dir, f"downloaded_file{file_extension}")
+                        if inventory:
+                            downloaded_file = os.path.join(temp_dir, f"inventory{file_extension}")
+                        else:
+                            downloaded_file = os.path.join(temp_dir, f"price{file_extension}")
                         with open(downloaded_file, 'wb') as f:
                             for chunk in response.iter_content(chunk_size=8192):
                                 f.write(chunk)
