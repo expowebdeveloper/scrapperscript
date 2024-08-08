@@ -23,7 +23,7 @@ from .models import VendorLogs, VendorSourceFile, FtpDetail, VendorSource
 import requests
 
 
-@shared_task(time_limit=333333, soft_time_limit=333333)
+@shared_task(time_limit=777, soft_time_limit=777)
 def login_and_download_file(login_url, username, password, username_xpath, password_xpath, login_xpath, file_download_xpath, vendor, inventory, file_download_url=""):
     try:
         vendor_source = VendorSource.objects.filter(id=vendor).last()
