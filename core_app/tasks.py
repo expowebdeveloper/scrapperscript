@@ -18,7 +18,7 @@ import os
 from django.conf import settings
 from datetime import datetime, timedelta
 from celery import shared_task
-from .utils import ensure_https, wait_for_download_complete, get_domain_name, get_relative_path, connect_ftp, disconnect_ftp, ftp_upload_file, scrape_price, scrape_inventory
+from .utils import ensure_https, wait_for_download_complete, get_domain_name, get_relative_path, connect_ftp, disconnect_ftp, ftp_upload_file, scrape_price, scrape_inventory, download_file
 from .models import VendorLogs, VendorSourceFile, FtpDetail, VendorSource
 import requests
 
@@ -82,20 +82,25 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
                 if file_download_url:
 
                     file_download_url = ensure_https(file_download_url)
-                    driver.get(file_download_url)
+                    # driver.get(file_download_url)
                     print(f"Navigated to download page: {file_download_url}")
+                    
+
                 if file_download_url and ('.pdf' in file_download_url or '.csv' in file_download_url or '.xlsx' in file_download_url):
                     try:
-                        # Navigate to the file download URL
-                        driver.get(file_download_url)
-                        print(f"Navigated to download URL: {file_download_url}")
+                        if username and password:
+                            # Navigate to the file download URL
+                            driver.get(file_download_url)
+                            print(f"Navigated to download URL: {file_download_url}")
 
-                        # Wait for the download to complete
-                        time.sleep(10)  # Adjust this time based on file size and download speed
+                            # Wait for the download to complete
+                            time.sleep(10)  # Adjust this time based on file size and download speed
 
-                        # Verify the downloaded file
-                        downloaded_file = wait_for_download_complete(temp_dir)
-                        print("Download complete:", downloaded_file)
+                            # Verify the downloaded file
+                            downloaded_file = wait_for_download_complete(temp_dir)
+                        else:
+                        # Step 2: Convert Selenium cookies to requests-compatible format
+                            downloaded_file = download_file(file_download_url, temp_dir)
 
                         if downloaded_file:
                             domain_name = get_domain_name(login_url)
@@ -170,10 +175,18 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
                             vendor_log.reason = message
                             vendor_log.save()
                             return False
+                    except RequestException as e:
+                        print(f"Request error: {e}")
+                        vendor_log.reason = "Failded to download File"
+                        vendor_log.save()
+                        return False
+
                     finally:
                         driver.quit()
                         return True
                 # Find the download link
+
+                driver.get(file_download_url)
                 if file_download_xpath:
                     download_link = WebDriverWait(driver, 30).until(
                         EC.presence_of_element_located((By.XPATH, file_download_xpath))
@@ -188,13 +201,13 @@ def login_and_download_file(login_url, username, password, username_xpath, passw
 
                 if download_url:
                     driver.get(download_url)
-                    print(f"Navigated to download page: {download_url}")
+                    print(f"Navigated to download page 2: {download_url}")
 
                 # Check if the URL contains .pdf or .csv
                 if '.pdf' in download_url or '.csv' in download_url or '.xlsx' in download_url:
                     # Download the file using requests
                     try:
-                        response = requests.get(download_url, stream=True)
+                        response = requests.get(download_url)
                         response.raise_for_status()
                         file_extension = '.pdf' if '.pdf' in download_url else '.csv' if '.csv' in download_url else '.xlsx'
                         if inventory:
@@ -738,6 +751,7 @@ def process_due_vendors():
                 continue
 
             target_date = vendor.updated_at.date() + delta
+
             # Check if today's date matches the target date
             if today == target_date:
                 # Check if username and password are present

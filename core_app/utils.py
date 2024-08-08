@@ -22,6 +22,40 @@ from lxml import html
 
 logger = logging.getLogger(__name__)
 
+def get_file_extension(url):
+    parsed_url = urlparse(url)
+    path = parsed_url.path
+    _, file_extension = os.path.splitext(path)
+    return file_extension
+
+def download_file(url, save_dir):
+    try:
+        headers = {
+            'Accept': 'text/csv',  # Or any other appropriate value
+        }
+
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+
+
+        file_extension = get_file_extension(url)
+        if not file_extension:
+            print("Could not determine the file extension.")
+            return None
+
+        file_name = f"downloaded_file{file_extension}"
+        save_path = os.path.join(save_dir, file_name)
+
+        with open(save_path, 'wb') as file:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    file.write(chunk)
+        print(f"File successfully downloaded to {save_path}")
+        return save_path
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to download the file: {e}")
+        return None
+
 
 def ensure_https(url):
     parsed_url = urlparse(url)
