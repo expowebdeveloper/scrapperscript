@@ -1,7 +1,7 @@
 
 import os 
 from celery import Celery 
-from celery.schedules import crontab
+from celery.schedules import crontab, timedelta
 
 # set the default Django settings module for the 'celery' program. 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'scrapperscript.settings') 
@@ -19,7 +19,7 @@ app.config_from_object('django.conf:settings',
 app.conf.beat_schedule = {
     'process-vendors-daily': {
         'task': 'core_app.tasks.process_due_vendors',
-        'schedule': crontab(minutes=1),  # Run daily at midnight
+        'schedule':  timedelta(minutes=1),  # Run daily at midnight
     },
 }
 
