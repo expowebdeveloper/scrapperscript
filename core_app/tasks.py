@@ -14,7 +14,6 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from celery.exceptions import SoftTimeLimitExceeded
 import time
 import os
-from tenacity import retry, wait_fixed, stop_after_attempt, retry_if_exception_type
 
 from django.conf import settings
 from datetime import datetime, timedelta
