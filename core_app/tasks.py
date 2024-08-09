@@ -755,6 +755,8 @@ def process_due_vendors():
                 next_target_datetime = vendor.next_due_date + delta
             else:
                 vendor.next_due_date = now
+                vendor.save()
+                next_target_datetime = now + delta
 
             # Check if current datetime is past the target datetime
             if now >= vendor.next_due_date:
@@ -794,4 +796,4 @@ def process_due_vendors():
                 else:
                     print(f"Vendor {vendor.website} does not have username or password.")
             else:
-                print(f"Vendor {vendor.website} is not due yet. Next Target datetime: {next_target_datetime}.")
+                print(f"Vendor {vendor.website} is not due yet. Next Target datetime: {vendor.next_due_date}.")
