@@ -31,7 +31,8 @@ def get_file_extension(url):
 def download_file(url, save_dir):
     try:
         headers = {
-            'Accept': 'text/csv',  # Or any other appropriate value
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': '*/*'
         }
 
         response = requests.get(url, headers=headers)
