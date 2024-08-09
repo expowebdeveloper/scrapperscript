@@ -13,7 +13,7 @@ from core_app.models import VendorSource, FtpDetail, VendorSourceFile, VendorLog
 from django.conf import settings
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import logging
-
+from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 
 class LoginView(View):
@@ -114,6 +114,13 @@ class AddDetailView(View):
              # Convert the dictionary to JSON format
             xpath_json = json.dumps(xpath_data)
             vendor = VendorSource.objects.filter(website=website).last()
+            if interval_unit == 'days':
+                delta = timedelta(days=vendor.interval)
+            elif interval_unit == 'weeks':
+                delta = timedelta(weeks=vendor.interval)
+            elif interval_unit == 'hours':
+                delta = timedelta(hours=vendor.interval)
+            next_date = datetime.now() + delta
             if vendor:
                 vendor.website= website
                 vendor.username = username
@@ -122,6 +129,7 @@ class AddDetailView(View):
                 vendor.unit = interval_unit
                 vendor.interval = interval
                 vendor.file_url = file_url
+                vendor.next_due_date = next_date
                 vendor.save()
 
             else:
@@ -132,7 +140,8 @@ class AddDetailView(View):
                         xpath  = xpath_json,
                         interval = interval,
                         file_url = file_url,
-                        unit = interval_unit
+                        unit = interval_unit,
+                        next_due_date = next_date
                     )
             vendor_log = VendorLogs.objects.create(vendor=vendor)
             # Add price_xpath to the dictionary if it's provided

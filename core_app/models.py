@@ -22,6 +22,7 @@ class VendorSource(BaseModel):
     xpath =  models.JSONField(default=dict())
     interval = models.PositiveIntegerField(null=True, blank=True)
     unit = models.CharField(max_length=10, choices=WEBSITE_CHOICES, null=True, blank=True)
+    next_due_date = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.website

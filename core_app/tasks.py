@@ -14,6 +14,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from celery.exceptions import SoftTimeLimitExceeded
 import time
 import os
+import json
 
 from django.conf import settings
 from datetime import datetime, timedelta
@@ -732,14 +733,15 @@ def process_due_vendors():
     """
     Task to check all VendorSource records and run `login_and_download_file` if due.
     """
-    import json
-    today = datetime.now().date()  # Get current date
-    from core_app.models import VendorSource
+    from django.utils import timezone
+
+    now = timezone.now()  # Get current datetime
     vendors = VendorSource.objects.all()
-    print(today)
+    print(now.date())  # Print current date
+
     for vendor in vendors:
         if vendor.updated_at and vendor.interval is not None and vendor.unit:
-            # Calculate the target date based on the unit
+            # Calculate the target datetime based on the unit
             if vendor.unit == 'days':
                 delta = timedelta(days=vendor.interval)
             elif vendor.unit == 'weeks':
@@ -749,15 +751,21 @@ def process_due_vendors():
             else:
                 print(f"Unsupported unit '{vendor.unit}' for vendor {vendor.website}.")
                 continue
+            if vendor.next_due_date:
+                next_target_datetime = vendor.next_due_date + delta
+            else:
+                vendor.next_due_date = now
 
-            target_date = vendor.updated_at.date() + delta
-
-            # Check if today's date matches the target date
-            if today == target_date:
+            # Check if current datetime is past the target datetime
+            if now >= vendor.next_due_date:
+                vendor.next_due_date = next_target_datetime  # Update `updated_at` to the current datetime
+                vendor.save()  # Save changes to the vendor instance
+                
                 # Check if username and password are present
                 if vendor.username and vendor.password:
                     xpath_data = json.loads(vendor.xpath)
-                    # Run the login_and_download_file function
+
+                    # Run the `login_and_download_file` function with appropriate parameters
                     login_and_download_file.delay(
                         login_url=vendor.website,
                         username=vendor.username,
@@ -767,9 +775,10 @@ def process_due_vendors():
                         login_xpath=xpath_data.get('login_button_xpath', ''),
                         file_download_xpath=xpath_data.get('inventory', ''),
                         vendor=vendor.id,
-                        inventory=True, # or False based on your needs
+                        inventory=True,  # or False based on your needs
                         file_download_url=vendor.file_url
                     )
+                    
                     login_and_download_file.delay(
                         login_url=vendor.website,
                         username=vendor.username,
@@ -785,4 +794,4 @@ def process_due_vendors():
                 else:
                     print(f"Vendor {vendor.website} does not have username or password.")
             else:
-                print(f"Vendor {vendor.website} is not due today. Target date: {target_date}.")
+                print(f"Vendor {vendor.website} is not due yet. Next Target datetime: {next_target_datetime}.")
