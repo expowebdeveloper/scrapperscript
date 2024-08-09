@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'core_app',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -162,3 +163,5 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 # set the celery timezone 
 CELERY_TIMEZONE = 'Asia/Kolkata'
 CELERY_ENABLE_UTC = False 
+
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
