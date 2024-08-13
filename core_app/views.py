@@ -114,14 +114,15 @@ class AddDetailView(View):
              # Convert the dictionary to JSON format
             xpath_json = json.dumps(xpath_data)
             vendor = VendorSource.objects.filter(website=website).last()
-            if interval_unit == 'days':
-                delta = timedelta(days=vendor.interval)
-            elif interval_unit == 'weeks':
-                delta = timedelta(weeks=vendor.interval)
-            elif interval_unit == 'hours':
-                delta = timedelta(hours=vendor.interval)
-            next_date = datetime.now() + delta
+            
             if vendor:
+                if interval_unit == 'days':
+                    delta = timedelta(days=vendor.interval)
+                elif interval_unit == 'weeks':
+                    delta = timedelta(weeks=vendor.interval)
+                elif interval_unit == 'hours':
+                    delta = timedelta(hours=vendor.interval)
+                next_date = datetime.now() + delta
                 vendor.website= website
                 vendor.username = username
                 vendor.password = password
@@ -133,6 +134,14 @@ class AddDetailView(View):
                 vendor.save()
 
             else:
+                if interval:
+                    if interval_unit == 'days':
+                        delta = timedelta(days=int(interval))
+                    elif interval_unit == 'weeks':
+                        delta = timedelta(weeks=int(interval))
+                    elif interval_unit == 'hours':
+                        delta = timedelta(hours=int(interval))
+                    next_date = datetime.now() + delta
                 vendor = VendorSource.objects.create(
                         website = website,
                         username = username,
@@ -213,49 +222,51 @@ class EditDocumentView(View):
         except VendorSource.DoesNontExist as e:
             return render(request, self.template_name, context = {"message":"Document with this Id does not exist"})
         else:
-            website: Optional[str] = request.POST.get("website")
-            login_button_xpath: Optional[str] = request.POST.get('login')
-            username_xpath: Optional[str] = request.POST.get('login_username')
-            password_xpath: Optional[str] = request.POST.get('login_password')
-            username: Optional[str] = request.POST.get("username")
-            password: Optional[str] = request.POST.get("password")
-            price_xpath: Optional[str] = request.POST.get("price")
-            inventory_xpath: Optional[str] = request.POST.get("inventory")
-            interval: Optional[str] = request.POST.get("interval")
-            interval_unit: Optional[str] = request.POST.get("unit")
-            file_url: Optional[str] = request.POST.get("file_url")
+            try:
+                website: Optional[str] = request.POST.get("website")
+                login_button_xpath: Optional[str] = request.POST.get('login')
+                username_xpath: Optional[str] = request.POST.get('login_username')
+                password_xpath: Optional[str] = request.POST.get('login_password')
+                username: Optional[str] = request.POST.get("username")
+                password: Optional[str] = request.POST.get("password")
+                price_xpath: Optional[str] = request.POST.get("price")
+                inventory_xpath: Optional[str] = request.POST.get("inventory")
+                interval: Optional[str] = request.POST.get("interval")
+                interval_unit: Optional[str] = request.POST.get("unit")
+                file_url: Optional[str] = request.POST.get("file_url")
 
 
-            result = is_valid_url(website)
-            if result:
-                # Convert the dictionary to JSON format
-                document_detail.website = website
-                document_detail.username = username
-                document_detail.password = password
-                document_detail.interval = interval
-                document_detail.unit = interval_unit
-                document_detail.file_url = file_url
-                xpath_data = {}
-                if price_xpath:
-                    xpath_data['price'] = price_xpath
-                if inventory_xpath:
-                    xpath_data['inventory'] = inventory_xpath
-                if login_button_xpath:
-                    xpath_data['login_button_xpath'] = login_button_xpath
-                if username_xpath:
-                    xpath_data['username_xpath'] = username_xpath
-                if password_xpath:
-                    xpath_data['password_xpath'] = password_xpath
-                
-                # Convert the dictionary to JSON format and update the xpath field
-                document_detail.xpath = json.dumps(xpath_data)
+                result = is_valid_url(website)
+                if result:
+                    # Convert the dictionary to JSON format
+                    document_detail.website = website
+                    document_detail.username = username
+                    document_detail.password = password
+                    document_detail.interval = interval
+                    document_detail.unit = interval_unit
+                    document_detail.file_url = file_url
+                    xpath_data = {}
+                    if price_xpath:
+                        xpath_data['price'] = price_xpath
+                    if inventory_xpath:
+                        xpath_data['inventory'] = inventory_xpath
+                    if login_button_xpath:
+                        xpath_data['login_button_xpath'] = login_button_xpath
+                    if username_xpath:
+                        xpath_data['username_xpath'] = username_xpath
+                    if password_xpath:
+                        xpath_data['password_xpath'] = password_xpath
+                    
+                    # Convert the dictionary to JSON format and update the xpath field
+                    document_detail.xpath = json.dumps(xpath_data)
 
-                # Save the updated VendorSource instance
-                document_detail.save()
+                    # Save the updated VendorSource instance
+                    document_detail.save()
 
-            else:
-                return render(request, self.template_name, context = {"message":"Invalid Website Link", "document_detail":document_detail})
-            
+                else:
+                    return render(request, self.template_name, context = {"message":"Invalid Website Link", "document_detail":document_detail})
+            except Exception as e:
+                return render(request, self.template_name, context = {"message":str(e)})
         return HttpResponseRedirect(reverse("dashboard"))
 
 
