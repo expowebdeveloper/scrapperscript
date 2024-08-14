@@ -103,6 +103,20 @@ class AddDetailView(View):
         file_url: Optional[str] = request.POST.get('file_url')
         message = ''
         result = is_valid_url(website)
+        print(file_url,'=========================file_url=================')
+        if file_url:
+            all_url = file_url.split(',')
+            print(all_url,'======================allurl====================')
+            if len(all_url) > 1:
+                price_url = all_url[0]
+                inventory_url= all_url[1]
+            else:
+                price_url = all_url[0]
+                inventory_url= all_url[0]
+        else:
+            price_url = ''
+            inventory_url= ''
+
         if result:
             
             xpath_data = {}
@@ -157,7 +171,11 @@ class AddDetailView(View):
                 
             #scrape data for Price
             try:
-                price_inventory_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, price_xpath, vendor.id, False, file_url)                
+                if price_xpath:
+                        price_inventory_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, price_xpath, vendor.id, False, price_url)
+                else:
+                    price_inventory_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, price_xpath, vendor.id, False, price_url)
+
             except Exception as e:
                 message='Failed downloading Price data'
                 vendor_log.reason = message
@@ -167,7 +185,10 @@ class AddDetailView(View):
             # Add inventory_xpath to the dictionary if it's provided
             try:
                 #scrape data for Inventory
-                inventory_file_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, inventory_xpath, vendor.id, True, file_url)
+                if inventory_xpath:
+                        inventory_file_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, inventory_xpath, vendor.id, True, inventory_url)
+                else:
+                    inventory_file_result = login_and_download_file.delay(website, username, password, username_xpath, password_xpath, login_button_xpath, inventory_xpath, vendor.id, True, inventory_url)
             except Exception as e:
                 message='Failed downloading Inventory data'
                 vendor_log.reason = message
